@@ -2,6 +2,5 @@ discord
 asyncio
 datetime
 aiohttp
-os
 time
 dotenv
