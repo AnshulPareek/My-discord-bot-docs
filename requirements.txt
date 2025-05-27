@@ -4,3 +4,4 @@ datetime
 aiohttp
 dotenv
 asyncpg
+flask
