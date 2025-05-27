@@ -3,3 +3,4 @@ asyncio
 datetime
 aiohttp
 dotenv
+asyncpg
