@@ -541,7 +541,7 @@ async def on_message(message):
     if user_id not in last_xp_time or now - last_xp_time[user_id] >= 3:
         last_xp_time[user_id] = now
         data = await get_user_data(user_id)
-        data["xp"] += 2000
+        data["xp"] += 3
         new_level = calculate_level(data["xp"])
 
         if new_level > data["level"]:
