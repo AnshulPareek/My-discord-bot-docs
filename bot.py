@@ -34,12 +34,7 @@ def is_authorized():
         role = discord.utils.get(ctx.author.roles, id=AUTHORIZED_ROLE_ID)
         return role is not None
     return commands.check(predicate)
-
-print("DB_USER:", os.getenv("DB_USER"))
-print("DB_PASSWORD:", os.getenv("DB_PASSWORD"))
-print("DB_NAME:", os.getenv("DB_NAME"))
-print("DB_HOST:", os.getenv("DB_HOST"))
-
+    
 # === Welcome gifs and Anime gifs for UI ---
 welcome_gifs = [
     "https://media.giphy.com/media/hvRJCLFzcasrR4ia7z/giphy.gif",
