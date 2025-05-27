@@ -1,3 +1,4 @@
+from keep_alive import keep_alive
 import discord
 from discord.ext import commands, tasks
 import random
@@ -8,14 +9,13 @@ import json
 import os
 import time
 from dotenv import load_dotenv
+import asyncpg
 load_dotenv()
+keep_alive()  # Starts the web server
+
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
-
-@bot.event
-async def on_ready():
-    print(f"Bot is online as {bot.user}!")
 
 # === CHANNEL and ROLE IDS ===
 WELCOME_CHANNEL_ID = 1373980307170004994
@@ -23,10 +23,22 @@ ANNOUNCE_CHANNEL_ID = 1373980682719858689
 AUDIT_LOG_CHANNEL_ID = 1374257739018272769
 LEVEL_CHANNEL_ID = 1374243868572254298
 SEARCH_CHANNEL_ID = 1374258522564591697
-LEVELS_FILE = "levels.json"
 AUTHORIZED_ROLE_ID = 1373962365019750411  # Role required for mod/admin commands
 VERIFIED_ROLE_ID = 1373989096992800840    # Role to assign on captcha success
 MUTED_ROLE_NAME = "Muted"
+
+# === for authorized role ===
+def is_authorized():
+    def predicate(ctx):
+        # Check if the user has the authorized role
+        role = discord.utils.get(ctx.author.roles, id=AUTHORIZED_ROLE_ID)
+        return role is not None
+    return commands.check(predicate)
+
+print("DB_USER:", os.getenv("DB_USER"))
+print("DB_PASSWORD:", os.getenv("DB_PASSWORD"))
+print("DB_NAME:", os.getenv("DB_NAME"))
+print("DB_HOST:", os.getenv("DB_HOST"))
 
 # === Welcome gifs and Anime gifs for UI ---
 welcome_gifs = [
@@ -88,31 +100,50 @@ anime_gifs = [
 ]
 
 # === User XP and leveling data (in-memory) ===
-def load_xp_data():
-    if os.path.exists(LEVELS_FILE):
-        with open(LEVELS_FILE, "r") as f:
-            return json.load(f)
-    return {}
+db = None
+async def connect_db():
+    global db
+    db = await asyncpg.connect(
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME"),
+        host=os.getenv("DB_HOST"),
+        port=5432
+    )
+    await db.execute('''
+        CREATE TABLE IF NOT EXISTS levels (
+            user_id BIGINT PRIMARY KEY,
+            xp INTEGER NOT NULL,
+            level INTEGER NOT NULL
+        )
+    ''')
+async def get_user_data(user_id):
+    try:
+        row = await db.fetchrow("SELECT xp, level FROM levels WHERE user_id = $1", user_id)
+        return dict(row) if row else {"xp": 0, "level": 0}
+    except Exception as e:
+        print(f"DB error in get_user_data: {e}")
+        return {"xp": 0, "level": 0}
+async def update_user_data(user_id, xp, level):
+    await db.execute('''
+        INSERT INTO levels (user_id, xp, level)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id)
+        DO UPDATE SET xp = EXCLUDED.xp, level = EXCLUDED.level
+    ''', user_id, xp, level)
 
-def save_xp_data():
-    with open(LEVELS_FILE, "w") as f:
-        json.dump(user_xp, f, indent=4)
-user_xp = load_xp_data()  # Load XP from file on startup
+# === Bot online checking ===
+@bot.event
+async def on_ready():
+    await connect_db()
+    print(f"Logged in as {bot.user}")
 
-def calculate_level(xp):
-    return int(xp ** 0.25)
 
-def is_authorized():
-    def predicate(ctx):
-        role = discord.utils.get(ctx.author.roles, id=AUTHORIZED_ROLE_ID)
-        return role is not None or ctx.author.guild_permissions.administrator
-    return commands.check(predicate)
-
+# === Audit log ===
 async def send_channel_message(channel_id, content=None, embed=None):
     channel = bot.get_channel(channel_id)
     if channel:
         await channel.send(content=content, embed=embed)
-
 async def audit_log(ctx, action, member=None, reason=None):
     reason_text = f" | Reason: {reason}" if reason else ""
     member_text = f" | Member: {member}" if member else ""
@@ -419,29 +450,28 @@ async def announce(ctx, *, message=None):
     await send_channel_message(AUDIT_LOG_CHANNEL_ID, f"📢 Announcement sent by {ctx.author}")
 
 # === LEVEL & LEADERBOARD ===
+# Replace usage of `user_xp` with direct DB access
+
+def calculate_level(xp):
+    return int((xp // 50) ** 0.5)
+
 @bot.command()
 async def level(ctx, member: discord.Member = None):
     if ctx.channel.id != LEVEL_CHANNEL_ID:
         return await ctx.send(f"❌ Please use this command in <#{LEVEL_CHANNEL_ID}> only.")
     
     member = member or ctx.author
-    user_id_str = str(member.id)
-    
-    data = user_xp.get(user_id_str)
-    if not data:
+    data = await get_user_data(member.id)
+    if data is None:
         return await ctx.send(f"🚫 No level data for {member.display_name}.")
 
-    # Compute rank
-    sorted_users = sorted(user_xp.items(), key=lambda x: (x[1]["level"], x[1]["xp"]), reverse=True)
-    rank = next((i + 1 for i, (uid, _) in enumerate(sorted_users) if uid == user_id_str), None)
+    rows = await db.fetch("SELECT user_id, xp, level FROM levels")
+    sorted_users = sorted(rows, key=lambda r: (r["level"], r["xp"]), reverse=True)
+    rank = next((i + 1 for i, row in enumerate(sorted_users) if row["user_id"] == member.id), None)
 
     embed = discord.Embed(
         title=f"🌟 Level for {member.display_name}",
-        description=(
-            f"Level: `{data['level']}`\n"
-            f"XP: `{data['xp']}`\n"
-            f"🏆 Rank: `#{rank}`"
-        ),
+        description=f"Level: `{data['level']}`\nXP: `{data['xp']}`\n🏆 Rank: `#{rank}`",
         color=discord.Color.purple(),
         timestamp=datetime.datetime.now(datetime.UTC)
     )
@@ -450,26 +480,39 @@ async def level(ctx, member: discord.Member = None):
     embed.set_image(url=random.choice(anime_gifs))
     await ctx.send(embed=embed)
 
-@bot.command(aliases=["leaderboard", "rank"])
+@bot.command(aliases=["leaderboard", "rank" , "lb"])
 async def ranks(ctx):
     if ctx.channel.id != LEVEL_CHANNEL_ID:
         return await ctx.send(f"❌ Please use this command in <#{LEVEL_CHANNEL_ID}> only.")
-    
-    if not user_xp:
-        return await ctx.send("⚠️ No data yet.")
-    
-    top = sorted(user_xp.items(), key=lambda x: x[1]["level"], reverse=True)[:10]
+
+    rows = await db.fetch("SELECT user_id, xp, level FROM levels")
+    if not rows:
+        return await ctx.send("⚠️ No level data found.")
+
+    top = sorted(rows, key=lambda r: (r["level"], r["xp"]), reverse=True)[:10]
+
     embed = discord.Embed(
         title="🏆 Leaderboard",
         color=discord.Color.gold(),
         timestamp=datetime.datetime.now(datetime.UTC)
     )
-    for i, (uid, d) in enumerate(top, 1):
-        user = await bot.fetch_user(uid)
-        embed.add_field(name=f"#{i} - {user.name}", value=f"Level {d['level']} | XP {d['xp']}", inline=False)
-    
+
+    for i, row in enumerate(top, 1):
+        try:
+            user = await bot.fetch_user(row["user_id"])
+            name = user.name
+        except discord.NotFound:
+            name = f"User {row['user_id']}"
+
+        embed.add_field(
+            name=f"#{i} - {name}",
+            value=f"Level {row['level']} | XP {row['xp']}",
+            inline=False
+        )
+
     embed.set_image(url=random.choice(anime_gifs))
     await ctx.send(embed=embed)
+
 
 # === ROLE ASSIGNMENT BASED ON LEVEL (example) ===
 level_roles = {
@@ -493,21 +536,17 @@ async def on_message(message):
     if message.author == bot.user or message.guild is None:
         return
 
-    # Auto-delete messages in audit log channel (except bot's)
     if message.channel.id == AUDIT_LOG_CHANNEL_ID and not message.author.bot:
         await message.delete(delay=1)
         return
 
-    # === LEVELING SYSTEM WITH ANTI-SPAM ===
-    user_id_str = str(message.author.id)
+    user_id = message.author.id
     now = time.time()
 
-    # Check cooldown: 60 seconds cooldown to gain XP again
-    if user_id_str not in last_xp_time or now - last_xp_time[user_id_str] >= 3:
-        last_xp_time[user_id_str] = now  # update last XP gain time
-
-        data = user_xp.setdefault(user_id_str, {"xp": 0, "level": 0})
-        data["xp"] += 2
+    if user_id not in last_xp_time or now - last_xp_time[user_id] >= 3:
+        last_xp_time[user_id] = now
+        data = await get_user_data(user_id)
+        data["xp"] += 2000
         new_level = calculate_level(data["xp"])
 
         if new_level > data["level"]:
@@ -523,11 +562,12 @@ async def on_message(message):
             if message.author.avatar:
                 embed.set_thumbnail(url=message.author.avatar.url)
             embed.set_image(url=random.choice(anime_gifs))
-            await send_channel_message(LEVEL_CHANNEL_ID, embed=embed)
+            channel = bot.get_channel(LEVEL_CHANNEL_ID)
+            if channel:
+                await channel.send(embed=embed)
 
-        save_xp_data()  # persist changes after XP update
+        await update_user_data(user_id, data["xp"], data["level"])
 
-    # Process other commands normally
     await bot.process_commands(message)
 
 # === SEARCH COMMAND (using Wikipedia API for example) ===
@@ -620,7 +660,7 @@ async def help(ctx):
         description=f"Use `{prefix}command` to run a command.\n\n"
                     f"Commands accessible to everyone:\n"
                     f"`level [user]` - Show your or user's level\n"
-                    f"`leaderboard` - Show top users by level\n"
+                    f"`leaderboard , rank , lb` - Show top users by level\n"
                     f"`search <query>` - Search something on internet (use in <#{SEARCH_CHANNEL_ID}>)\n\n"
                     f"Moderator/Admin Commands (Require <@&{AUTHORIZED_ROLE_ID}> role):\n"
                     f"`ban <user> [reason]` - Ban a user\n"
