@@ -657,7 +657,7 @@ async def help(ctx):
                     f"`level [user]` - Show your or user's level\n"
                     f"`leaderboard , rank , lb` - Show top users by level\n"
                     f"`search <query>` - Search something on internet (use in <#{SEARCH_CHANNEL_ID}>)\n\n"
-                    f"Moderator/Admin Commands (Require <@&{AUTHORIZED_ROLE_ID}> role):\n"
+                    f"Moderator/Admin Commands (Require Mod role):\n"
                     f"`ban <user> [reason]` - Ban a user\n"
                     f"`tempban <user> <minutes> [reason]` - Temporary ban a user\n"
                     f"`kick <user> [reason]` - Kick a user\n"
