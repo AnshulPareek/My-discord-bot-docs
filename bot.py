@@ -528,7 +528,7 @@ async def assign_level_roles(member, level):
 last_xp_time = {}
 @bot.event
 async def on_message(message):
-    if message.author == bot.user or message.guild is None:
+    if message.author.bot or message.guild is None:
         return
 
     if message.channel.id == AUDIT_LOG_CHANNEL_ID and not message.author.bot:
@@ -564,6 +564,34 @@ async def on_message(message):
         await update_user_data(user_id, data["xp"], data["level"])
 
     await bot.process_commands(message)
+
+# === to reset user's level === 
+@bot.command(name="resetlevel")
+@is_authorized()
+async def reset_level(ctx, member: discord.Member = None):
+    if not member:
+        return await ctx.send("❌ Please mention a user to reset.")
+    
+    await update_user_data(member.id, 0, 0)
+    await ctx.send(f"🔄 {member.mention}'s level and XP have been reset.")
+    await audit_log(ctx, "Reset Level", member)
+
+# === to set user level to a specific level ===
+@bot.command(name="setlevel")
+@is_authorized()
+async def set_level(ctx, member: discord.Member = None, level: int = None):
+    if not member or level is None:
+        return await ctx.send("❌ Usage: `!setlevel @user level`")
+    if level < 0:
+        return await ctx.send("❌ Level must be 0 or higher.")
+
+    # Estimate XP needed for given level (based on your formula)
+    xp = int((level ** 2) * 50)  # Reverse of: level = int((xp // 50) ** 0.5)
+
+    await update_user_data(member.id, xp, level)
+    await assign_level_roles(member, level)
+    await ctx.send(f"✅ Set {member.mention}'s level to **{level}**.")
+    await audit_log(ctx, "Set Level", member, f"Level: {level}")
 
 # === SEARCH COMMAND (using Wikipedia API for example) ===
 @bot.command()
@@ -623,7 +651,6 @@ async def userinfo(ctx, member: discord.Member = None):
     embed.add_field(name="Bot?", value=member.bot, inline=True)
     embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
     await ctx.send(embed=embed)
-
 @bot.command()
 async def serverinfo(ctx):
     guild = ctx.guild
@@ -663,6 +690,8 @@ async def help(ctx):
                     f"`unmute <user>` - Unmute a user\n"
                     f"`nick <user> <nickname>` - Change user's nickname\n"
                     f"`clear [user] <amount> ` - Clear messages\n"
+                    f"`resetlevel [user]` - to reset level of a user\n"
+                    f"`setlevel [user] [level]` - to set a specifiedvlevel to user\n"
                     f"`announce <message>` - Send announcement\n"
                     f"`userinfo [user]` - Show info about user\n"
                     f"`serverinfo` - Show server info\n"
