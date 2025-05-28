@@ -11,7 +11,7 @@ import time
 from dotenv import load_dotenv
 import asyncpg
 load_dotenv()
-keep_alive()  # Starts the web server
+keep_alive()  # Starts the web server , do it anywhere u want <3
 
 
 intents = discord.Intents.all()
@@ -22,8 +22,8 @@ WELCOME_CHANNEL_ID = 1373980307170004994
 ANNOUNCE_CHANNEL_ID = 1373980682719858689
 AUDIT_LOG_CHANNEL_ID = 1374257739018272769
 LEVEL_CHANNEL_ID = 1374243868572254298
-SEARCH_CHANNEL_ID = 1374258522564591697
-AUTHORIZED_ROLE_ID = 1373962365019750411  # Role required for mod/admin commands
+SEARCH_CHANNEL_ID = 1374258522564591697   # These channel ids can be changed according to ur server.
+AUTHORIZED_ROLE_ID = 1373962365019750411  # Role required for mod/admin cmnds
 VERIFIED_ROLE_ID = 1373989096992800840    # Role to assign on captcha success
 MUTED_ROLE_NAME = "Muted"
 
@@ -94,7 +94,7 @@ anime_gifs = [
     "https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif"
 ]
 
-# === User XP and leveling data (in-memory) ===
+# === User XP and leveling data (in-memory post-something sql on render) ===
 db = None
 async def connect_db():
     global db
@@ -636,8 +636,6 @@ async def serverinfo(ctx):
     embed.set_thumbnail(url=guild.icon.url if guild.icon else discord.Embed.Empty)
     embed.add_field(name="Server ID", value=guild.id, inline=True)
     embed.add_field(name="Owner", value=str(guild.owner), inline=True)
-    # Removed region line because it's deprecated in discord.py
-    # embed.add_field(name="Region", value=str(guild.region), inline=True)
     embed.add_field(name="Members", value=guild.member_count, inline=True)
     embed.add_field(name="Roles", value=len(roles), inline=True)
     embed.add_field(name="Text Channels", value=len(guild.text_channels), inline=True)
@@ -690,9 +688,9 @@ async def on_command_error(ctx, error):
         await ctx.send(f"❌ An error occurred: {error}")
 
 # === RUN BOT ===
-# Put your bot token here
+# Put ur bot token here
 if __name__ == "__main__":
     try:
         bot.run(os.getenv("TOKEN"))
     except SystemExit:
-        pass  # Do nothing; allows clean shutdown
+        pass  # Do nothing; allows clean shutdown optional so u can skipp it too.
