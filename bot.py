@@ -8,6 +8,7 @@ import aiohttp
 import json
 import os
 import time
+import ssl
 from dotenv import load_dotenv
 import asyncpg
 load_dotenv()
