@@ -104,6 +104,7 @@ async def connect_db():
         database=os.getenv("DB_NAME"),
         host=os.getenv("DB_HOST"),
         port=5432
+        ssl=ssl_context
     )
     await db.execute('''
         CREATE TABLE IF NOT EXISTS levels (
