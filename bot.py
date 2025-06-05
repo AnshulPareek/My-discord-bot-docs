@@ -14,7 +14,6 @@ import asyncpg
 load_dotenv()
 keep_alive()  # Starts the web server , do it anywhere u want <3
 
-
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
@@ -100,6 +99,8 @@ db = None
 async def connect_db():
     global db
     ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
     db = await asyncpg.connect(
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
