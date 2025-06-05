@@ -98,12 +98,13 @@ anime_gifs = [
 db = None
 async def connect_db():
     global db
+    ssl_context = ssl.create_default_context()
     db = await asyncpg.connect(
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
         database=os.getenv("DB_NAME"),
         host=os.getenv("DB_HOST"),
-        port=5432
+        port=5432,
         ssl=ssl_context
     )
     await db.execute('''
