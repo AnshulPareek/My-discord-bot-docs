@@ -5,4 +5,3 @@ aiohttp
 dotenv
 asyncpg
 flask
-ssl
