@@ -722,8 +722,11 @@ async def on_command_error(ctx, error):
 
 # === RUN BOT ===
 # Put ur bot token here
+# just in case if flask is active but the bot disconnects
 if __name__ == "__main__":
-    try:
-        bot.run(os.getenv("TOKEN"))
-    except SystemExit:
-        pass  # Do nothing; allows clean shutdown optional so u can skipp it too.
+    while True:
+        try:
+            bot.run(os.getenv("TOKEN"), reconnect=True)
+        except Exception as e:
+            print("Bot crashed:", e)
+            time.sleep(5)
