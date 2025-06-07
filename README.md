@@ -63,21 +63,21 @@ A feature-rich Discord bot built with `discord.py` supporting:
 
 3. **Configure environment variables:**
 Create a .env file or set environment variables with your Discord bot token:
-  ```
-  DB_HOST=your_database_host
-  DB_NAME=your_database_name
-  DB_USER=your_database_usee
-  DB_PASSWORD=your_database_password
-  TOKEN=your_discord_bot_token_here
-```
+      ```
+     DB_HOST=your_database_host
+     DB_NAME=your_database_name
+     DB_USER=your_database_usee
+     DB_PASSWORD=your_database_password
+     TOKEN=your_discord_bot_token_here
+
 4. **Configure constants in your bot code:**
 Update channel IDs and role IDs such as:
-```
-  ANNOUNCE_CHANNEL_ID = your_announce_channel_id  
-  AUDIT_LOG_CHANNEL_ID = your_audit_log_channel_id
-  LEVEL_CHANNEL_ID = your_level_channel_id
-  SEARCH_CHANNEL_ID = your_search_channel_id
-```
+      ```
+     ANNOUNCE_CHANNEL_ID = your_announce_channel_id  
+     AUDIT_LOG_CHANNEL_ID = your_audit_log_channel_id
+     LEVEL_CHANNEL_ID = your_level_channel_id
+     SEARCH_CHANNEL_ID = your_search_channel_id
+
 5. **Database setup:**
 Ensure you have a PostgreSQL database setup and the necessary tables created for levels and XP tracking. Update database connection details in your code.
 
