@@ -97,8 +97,8 @@ python bot.py
 | `!resetlevel <user>`           | Reset level and XP of user                                  | Moderator/Admin |
 | `!setlevel <user> <level>`     | Set level and XP of user                                    | Moderator/Admin |
 | `!search <query>`              | Search Wikipedia (in search channel only)                   | Everyone        |
-| `!userinfo [user]`             | Show user info                                              | Everyone        |
-| `!serverinfo`                  | Show server info                                            | Everyone        |
+| `!userinfo [user]`             | Show user info                                              | Moderator/Admin |
+| `!serverinfo`                  | Show server info                                            | Moderator/Admin |
 | **Moderation commands:**       | `ban`, `tempban`, `kick`, `mute`, `unmute`, `nick`, `clear` | Moderator/Admin |
 
 ## Notes
