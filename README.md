@@ -55,7 +55,7 @@ A feature-rich Discord bot built with `discord.py` supporting:
 
 1. **Clone the repository:**
    ````
-   git clone [https://github.com/AnshulPareek/My-discord-bot-docs]
+   git clone https://github.com/AnshulPareek/My-discord-bot-docs.git
    cd My-discord-bot-docs
 
 2. **Install dependencies:**
