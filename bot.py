@@ -5,14 +5,12 @@ import random
 import asyncio
 import datetime
 import aiohttp
-import json
 import os
 import time
 import ssl
 from dotenv import load_dotenv
 import asyncpg
 load_dotenv()
-keep_alive()  # Starts the web server , do it anywhere u want <3
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
@@ -95,12 +93,12 @@ anime_gifs = [
 ]
 
 # === User XP and leveling data (in-memory post-something sql on render) ===
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
 db = None
 async def connect_db():
     global db
-    ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
     db = await asyncpg.connect(
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
@@ -119,10 +117,11 @@ async def connect_db():
 async def get_user_data(user_id):
     try:
         row = await db.fetchrow("SELECT xp, level FROM levels WHERE user_id = $1", user_id)
-        return dict(row) if row else {"xp": 0, "level": 0}
+        return {"xp": row["xp"], "level": row["level"]} if row else {"xp": 0, "level": 0}
     except Exception as e:
         print(f"DB error in get_user_data: {e}")
         return {"xp": 0, "level": 0}
+
 async def update_user_data(user_id, xp, level):
     await db.execute('''
         INSERT INTO levels (user_id, xp, level)
@@ -136,7 +135,6 @@ async def update_user_data(user_id, xp, level):
 async def on_ready():
     await connect_db()
     print(f"Logged in as {bot.user}")
-
 
 # === Audit log ===
 async def send_channel_message(channel_id, content=None, embed=None):
@@ -155,7 +153,6 @@ async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL_ID)
     if not channel:
         return
-
     gif_url = random.choice(welcome_gifs)
     embed = discord.Embed(
         title=f"Welcome to {member.guild.name}, {member.display_name}!",
@@ -720,13 +717,12 @@ async def on_command_error(ctx, error):
     else:
         await ctx.send(f"❌ An error occurred: {error}")
 
+keep_alive()  # Starts the web server , do it anywhere u want <3
+
 # === RUN BOT ===
 # Put ur bot token here
-# just in case if flask is active but the bot disconnects
 if __name__ == "__main__":
-    while True:
-        try:
-            bot.run(os.getenv("TOKEN"), reconnect=True)
-        except Exception as e:
-            print("Bot crashed:", e)
-            time.sleep(5)
+    try:
+        bot.run(os.getenv("TOKEN"),reconnect=True)
+    except SystemExit:
+        pass  # Do nothing; allows clean shutdown optional so u can skipp it too.
