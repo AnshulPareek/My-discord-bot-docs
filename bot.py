@@ -131,10 +131,28 @@ async def update_user_data(user_id, xp, level):
     ''', user_id, xp, level)
 
 # === Bot online checking ===
+@tasks.loop(seconds=10)  # Every 5 minutes
+async def health_check():
+    try:
+        await bot.fetch_user(bot.user.id)
+        print("[✓] Bot is still responsive.")
+    except Exception as e:
+        print(f"[!] Bot is unresponsive. Error: {e}")
+        os._exit(1)  # Force restart, let host auto-reboot
+
 @bot.event
 async def on_ready():
     await connect_db()
     print(f"Logged in as {bot.user}")
+    health_check.start()
+ 
+@bot.event
+async def on_disconnect():
+    print("[!] Bot disconnected from Discord.")
+
+@bot.event
+async def on_resumed():
+    print("[✓] Bot connection resumed.")
 
 # === Audit log ===
 async def send_channel_message(channel_id, content=None, embed=None):
@@ -425,9 +443,7 @@ async def offline(ctx):
     await ctx.send("🛑 Bot is going offline now...")
     await audit_log(ctx, "Bot Shutdown", reason="Shutdown via !offline command.")
     await bot.close()
-
-    # Exit cleanly without traceback
-    raise SystemExit(0)
+    exit(0)
 
 # === ANNOUNCE ===
 @bot.command()
